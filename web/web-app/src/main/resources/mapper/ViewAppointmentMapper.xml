@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.app.mapper.ViewAppointmentMapper">
+
+
+    <!--对这里映射的注释：-->
+    <!--分组：MyBatis 会根据 id 列的值将查询结果分组，每组对应一个 AppointmentItemVo 对象。-->
+    <!--填充基本属性：对于每组，MyBatis 会填充 AppointmentItemVo 的基本属性，如 id, appointmentTime, appointmentStatus, apartmentName。-->
+    <!--填充集合属性：对于每组中的每一行，MyBatis 会创建一个 GraphVo 对象，并将 gi.name 和 gi.url 映射到 GraphVo 的相应属性中，然后将这些 GraphVo 对象添加到 graphVoList 集合中。-->
+    <resultMap id="AppointmentItemVoMap" type="com.atguigu.lease.web.app.vo.appointment.AppointmentItemVo"
+               autoMapping="true">
+        <id column="id" property="id"/>
+        <collection property="graphVoList" ofType="com.atguigu.lease.web.app.vo.graph.GraphVo" autoMapping="true"/>
+    </resultMap>
+
+    <select id="listItemByUserId" resultMap="AppointmentItemVoMap">
+        select va.id,
+               va.appointment_time,
+               va.appointment_status,
+               ai.name apartment_name,
+               gi.name,
+               gi.url
+        from view_appointment va
+                 left join apartment_info ai on va.apartment_id = ai.id and ai.is_deleted = 0
+                 left join graph_info gi on gi.item_type = 1 and gi.item_id = ai.id and gi.is_deleted = 0
+        where va.is_deleted = 0
+          and va.user_id = #{userId}
+        order by va.create_time desc
+    </select>
+</mapper>

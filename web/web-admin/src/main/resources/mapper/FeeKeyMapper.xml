@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.admin.mapper.FeeKeyMapper">
+
+    <!--将表查询结果映射为FeeKeyVo，同时部分字段可以自动映射autoMapping="true"-->
+    <!--注意，这里createTime、updateTime就没有映射，因为用不到。-->
+    <resultMap id="FeeInfoList" type="com.atguigu.lease.web.admin.vo.fee.FeeKeyVo" autoMapping="true">
+        <id property="id" column="k_id"/>
+        <result property="name" column="k_name"/>
+        <collection property="feeValueList" ofType="com.atguigu.lease.model.entity.FeeValue" autoMapping="true">
+            <id property="id" column="v_id"/>
+            <result property="name" column="v_name"/>
+            <result property="unit" column="unit"/>
+            <result property="feeKeyId" column="fee_key_id"/>
+        </collection>
+    </resultMap>
+    <select id="listFeeInfo" resultMap="FeeInfoList">
+        select k.id k_id,
+               k.name k_name,
+               v.id v_id,
+               v.name v_name,
+               v.unit,
+               v.fee_key_id
+        from fee_key k
+                 left join fee_value v on k.id = v.fee_key_id and v.is_deleted = 0
+        where k.is_deleted = 0
+    </select>
+</mapper>

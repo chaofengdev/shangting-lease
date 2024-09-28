@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.admin.mapper.AttrValueMapper">
+
+    <!--对着数据库的物理模型梳理一下，整理一下写sql的思路。本质上是attr_value表连接attr_key表，查每个属性值对应的属性名，
+    筛选条件是中间表的attr_value_id，可以作为子查询，用room_id筛选出attr_value_id。-->
+    <select id="selectListByRoomId" resultType="com.atguigu.lease.web.admin.vo.attr.AttrValueVo">
+        select av.id,
+               av.name,
+               av.attr_key_id,
+               ak.name attr_key_name
+        from attr_value av
+                 join attr_key ak on av.attr_key_id = ak.id
+        where av.is_deleted = 0
+          and ak.is_deleted = 0
+          and av.id in (select rv.attr_value_id
+                        from room_attr_value rv
+                        where rv.is_deleted = 0
+                          and room_id = #{id})
+    </select>
+</mapper>

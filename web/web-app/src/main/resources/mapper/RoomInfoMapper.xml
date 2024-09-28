@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.app.mapper.RoomInfoMapper">
+
+    <!--本项目最优挑战性的SQL语句！！！下面是几个注意事项：-->
+    <!--1.由于xml文件中的`<`和`>`是特殊符号，需要转义处理。-->
+    <!--2.使用Mybatis-Plus的分页插件进行分页查询时，如果结果需要使用`<collection>`进行映射，我们只能使用嵌套查询，而不能使用嵌套结果映射。-->
+    <!--什么是嵌套结果映射，简单来讲就是先连接查询后，再映射为指定vo类型。如果是一个房间对应多个图片，那么此时分页出来的会有多个相同的房间。-->
+    <!--使用嵌套查询，Mybatis会执行主查询来获取`room_info`列表，然后对于每个`room_info`，Mybatis都会执行一次子查询来获取其对应的`graph_info`。-->
+    <!--显然**嵌套结果映射**的分页逻辑是存在问题的，而嵌套查询是正常的，因为分页插件的limit加在主表root_info上。-->
+
+
+    <!-- result map -->
+    <resultMap id="RoomItemVoMap" type="com.atguigu.lease.web.app.vo.room.RoomItemVo" autoMapping="true">
+        <id column="id" property="id"/>
+        <!--映射公寓信息-->
+        <association property="apartmentInfo" javaType="com.atguigu.lease.model.entity.ApartmentInfo"
+                     autoMapping="true">
+            <id column="id" property="id"/>
+        </association>
+        <!--映射图片列表-->
+        <collection property="graphVoList" ofType="com.atguigu.lease.web.app.vo.graph.GraphVo"
+                    select="selectGraphVoListByRoomId" column="id"/>
+        <!--映射标签列表-->
+        <collection property="labelInfoList" ofType="com.atguigu.lease.model.entity.LabelInfo"
+                    select="selectLabelInfoListByRoomId" column="id"/>
+    </resultMap>
+
+    <!-- 根据条件查询房间列表 -->
+    <select id="pageRoomItemByQuery" resultMap="RoomItemVoMap">
+        select
+        ri.id,
+        ri.room_number,
+        ri.rent,
+        ai.id apartment_id,
+        ai.name,
+        ai.introduction,
+        ai.district_id,
+        ai.district_name,
+        ai.city_id,
+        ai.city_name,
+        ai.province_id,
+        ai.province_name,
+        ai.address_detail,
+        ai.latitude,
+        ai.longitude,
+        ai.phone,
+        ai.is_release
+        from room_info ri
+        left join apartment_info ai on ri.apartment_id = ai.id and ai.is_deleted = 0
+        <where>
+            ri.is_deleted = 0
+            and ri.is_release = 1
+            and ri.id not in(
+            select room_id
+            from lease_agreement
+            where is_deleted = 0
+            and status in(2,5))
+            <if test="queryVo.provinceId != null">
+                and ai.province_id = #{queryVo.provinceId}
+            </if>
+            <if test="queryVo.cityId != null">
+                and ai.city_id = #{queryVo.cityId}
+            </if>
+            <if test="queryVo.districtId != null">
+                and ai.district_id = #{queryVo.districtId}
+            </if>
+            <if test="queryVo.minRent != null and queryVo.maxRent != null">
+                and (ri.rent &gt;= #{queryVo.minRent} and ri.rent &lt;= #{queryVo.maxRent})
+            </if>
+            <if test="queryVo.paymentTypeId != null">
+                and ri.id in (
+                select
+                room_id
+                from room_payment_type
+                where is_deleted = 0
+                and payment_type_id = #{queryVo.paymentTypeId}
+                )
+            </if>
+        </where>
+        <if test="queryVo.orderType == 'desc' or queryVo.orderType == 'asc'">
+            order by ri.rent ${queryVo.orderType}
+        </if>
+    </select>
+
+    <!-- 根据房间ID查询图片列表 -->
+    <select id="selectGraphVoListByRoomId" resultType="com.atguigu.lease.web.app.vo.graph.GraphVo">
+        select id,
+               name,
+               item_type,
+               item_id,
+               url
+        from graph_info
+        where is_deleted = 0
+          and item_type = 2
+          and item_id = #{id}
+    </select>
+
+    <!-- 根据公寓ID查询标签列表 -->
+    <select id="selectLabelInfoListByRoomId" resultType="com.atguigu.lease.model.entity.LabelInfo">
+        select id,
+               type,
+               name
+        from label_info
+        where is_deleted = 0
+          and id in (select label_id
+                     from room_label
+                     where is_deleted = 0
+                       and room_id = #{id})
+    </select>
+
+
+
+
+    <!--从room_info中找到指定公寓中最小的租金，注意返回值是BigDecimal-->
+    <!--BigDecimal 是 Java 中用于表示精确的数值类型，特别适合处理需要高精度的数值运算，如货币、租金等涉及小数的场景。相比于 double 或 float，BigDecimal 能避免浮点运算中的精度丢失问题。-->
+    <select id="selectMinRentByApartmentId" resultType="java.math.BigDecimal">
+        select min(rent)
+        from room_info
+        where is_deleted = 0
+          and is_release = 1
+          and apartment_id = #{id}
+    </select>
+
+
+    <!--这里不用从头写了，整理逻辑和上面分页查询房间列表类似，只不过这里多了个公寓id的筛选条件，少了其他的queryVo。另外房间要有其他筛选，比如是没有租约的房间。-->
+    <!--因为都是返回RoomItemVo，所以可以重复使用上面的resultMap进行映射。-->
+    <select id="pageItemByApartmentId" resultMap="RoomItemVoMap">
+        select ri.id,
+               ri.room_number,
+               ri.rent,
+               ai.id apartment_id,
+               ai.name,
+               ai.introduction,
+               ai.district_id,
+               ai.district_name,
+               ai.city_id,
+               ai.city_name,
+               ai.province_id,
+               ai.province_name,
+               ai.address_detail,
+               ai.latitude,
+               ai.longitude,
+               ai.phone,
+               ai.is_release
+        from room_info ri
+                 left join apartment_info ai on ri.apartment_id = ai.id and ai.is_deleted = 0
+        where ri.is_deleted = 0
+          and ri.is_release = 1
+          and ai.id = #{id}
+          and ri.id not in (select room_id
+                            from lease_agreement
+                            where is_deleted = 0
+                              and status in (2, 5))
+    </select>
+</mapper>

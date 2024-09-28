@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.admin.mapper.ViewAppointmentMapper">
+
+    <!--AppointmentVoMap 用于将 SQL 查询的结果映射到 AppointmentVo 对象及其关联的 ApartmentInfo 对象中。-->
+    <resultMap id="AppointmentVoMap" type="com.atguigu.lease.web.admin.vo.appointment.AppointmentVo" autoMapping="true">
+        <id property="id" column="id"/>
+        <association property="apartmentInfo" javaType="com.atguigu.lease.model.entity.ApartmentInfo" autoMapping="true">
+            <id property="id" column="apartment_id"/>
+            <result property="name" column="apartment_name"/>
+        </association>
+    </resultMap>
+
+    <!--<resultMap>作用是将查询结果映射为Java对象。不过这个对象往往比较复杂，嵌套了其他对象，所以需要单独写一个映射文件。-->
+    <!--另外这里的where里有动态sql，并且对于queryVo.name和queryVo.phone进行了判空处理，%是通配符，concat是拼接字符串的函数，用来进行模糊查询。-->
+    <select id="pageAppointmentByQuery" resultMap="AppointmentVoMap">
+        select va.id,
+        va.user_id,
+        va.name,
+        va.phone,
+        va.appointment_time,
+        va.additional_info,
+        va.appointment_status,
+        ai.id apartment_id,
+        ai.name apartment_name,
+        ai.district_id,
+        ai.district_name,
+        ai.city_id,
+        ai.city_name,
+        ai.province_id,
+        ai.province_name,
+        ai.introduction,
+        ai.latitude,
+        ai.longitude,
+        ai.address_detail,
+        ai.is_release
+        from view_appointment va
+        left join
+        apartment_info ai
+        on va.apartment_id = ai.id and ai.is_deleted=0
+        <where>
+            va.is_deleted = 0
+            <if test="queryVo.provinceId != null">
+                and ai.province_id = #{queryVo.provinceId}
+            </if>
+            <if test="queryVo.cityId != null">
+                and ai.city_id = #{queryVo.cityId}
+            </if>
+            <if test="queryVo.districtId != null">
+                and ai.district_id = #{queryVo.districtId}
+            </if>
+            <if test="queryVo.apartmentId != null">
+                and va.apartment_id = #{queryVo.apartmentId}
+            </if>
+            <if test="queryVo.name != null and queryVo.name != ''">
+                and va.name like concat('%',#{queryVo.name},'%')
+            </if>
+            <if test="queryVo.phone != null and queryVo.phone != ''">
+                and va.phone like concat('%',#{queryVo.phone},'%')
+            </if>
+        </where>
+    </select>
+</mapper>

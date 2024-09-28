@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.admin.mapper.FeeValueMapper">
+
+    <!--这里表有点多，所以先join两张表：fee_value、fee_key，再根据中间表apartment_fee_value中的fee_value_id进行筛选-->
+    <!--注意，写类似sql，先梳理思路再写，细节很重要，稍微错一点就全错了。基本功。-->
+    <select id="selectListByApartmentId" resultType="com.atguigu.lease.web.admin.vo.fee.FeeValueVo">
+        select fv.id,
+               fv.name,
+               fv.unit,
+               fv.fee_key_id,
+               fk.id,
+               fk.name as fee_key_name
+        from fee_value fv
+                 join fee_key fk
+                      on fv.fee_key_id = fk.id
+        where fv.is_deleted = 0
+          and fk.is_deleted = 0
+          and fv.id in (select fee_value_id
+                        from apartment_fee_value
+                        where is_deleted = 0
+                          and apartment_id = #{id})
+
+    </select>
+</mapper>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.atguigu.lease.web.admin.mapper.RoomInfoMapper">
+
+    <!--<association> 标签：用于指定对象属性的复杂映射（即关联对象）。
+    这里的 association 将结果集中的 apart_id 字段和 apartmentInfo 对象的 id 属性映射，并将 apart_is_release 字段映射到 apartmentInfo 对象的 isRelease 属性。-->
+    <resultMap id="RoomItemVoMap" type="com.atguigu.lease.web.admin.vo.room.RoomItemVo" autoMapping="true">
+        <id property="id" column="id"/>
+        <association property="apartmentInfo" javaType="com.atguigu.lease.model.entity.ApartmentInfo" autoMapping="true">
+            <id property="id" column="apart_id"/>
+            <result property="isRelease" column="apart_is_release"/>
+        </association>
+    </resultMap>
+
+    <!--查询结果通过 resultMap="RoomItemVoMap" 被映射到 RoomItemVo 对象，公寓信息被映射到 RoomItemVo 中的 apartmentInfo 属性。-->
+    <select id="pageRoomItemByQuery" resultMap="RoomItemVoMap">
+        select ri.id,
+               ri.room_number,
+               ri.rent,
+               ri.apartment_id,
+               ri.is_release,
+               la.room_id is not null is_check_in,
+               la.lease_end_date,
+               ai.id                  apart_id,
+               ai.name,
+               ai.introduction,
+               ai.district_id,
+               ai.district_name,
+               ai.city_id,
+               ai.city_name,
+               ai.province_id,
+               ai.province_name,
+               ai.address_detail,
+               ai.latitude,
+               ai.longitude,
+               ai.phone,
+               ai.is_release          apart_is_release
+        from room_info ri
+                 left join lease_agreement la
+                           on ri.id = la.room_id
+                               and la.is_deleted = 0
+                               and la.status in (2, 5)
+                 left join apartment_info ai
+                           on ri.apartment_id = ai.id
+                               and ai.is_deleted = 0
+        <where>
+            ri.is_deleted = 0
+            <if test="queryVo.provinceId != null">
+                and ai.province_id = #{queryVo.provinceId}
+            </if>
+            <if test="queryVo.cityId != null">
+                and ai.city_id = #{queryVo.cityId}
+            </if>
+            <if test="queryVo.districtId != null">
+                and ai.district_id = #{queryVo.districtId}
+            </if>
+            <if test="queryVo.apartmentId != null">
+                and ri.apartment_id = #{queryVo.apartmentId}
+            </if>
+        </where>
+    </select>
+</mapper>
